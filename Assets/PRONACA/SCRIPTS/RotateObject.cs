@@ -8,20 +8,39 @@ public class RotateObject : MonoBehaviour
     public Vector3 rotationDegrees = new Vector3(0, 120, 0);
 
     public UnityEvent onRotationComplete;
+    public UnityEvent onDesRotationComplete;
 
     public void RotateBy()
     {
         StopAllCoroutines();
-        StartCoroutine(RotateRoutine(rotationDegrees));
+        StartCoroutine(RotateRoutine(rotationDegrees, false));
     }
 
-    private IEnumerator RotateRoutine(Vector3 rotationDeg)
+    public void UndoRotation()
+    {
+        StopAllCoroutines();
+        StartCoroutine(RotateRoutine(-rotationDegrees, true));
+    }
+
+    private IEnumerator RotateRoutine(Vector3 rotationDeg, bool isUndo)
     {
         Quaternion startRotation = transform.rotation;
         Quaternion targetRotation = transform.rotation * Quaternion.Euler(rotationDeg);
 
         float angle = Quaternion.Angle(startRotation, targetRotation);
         float t = 0f;
+
+        if (angle < 0.0001f)
+        {
+            transform.rotation = targetRotation;
+
+            if (isUndo)
+                onDesRotationComplete?.Invoke();
+            else
+                onRotationComplete?.Invoke();
+
+            yield break;
+        }
 
         while (t < 1f)
         {
@@ -31,6 +50,10 @@ public class RotateObject : MonoBehaviour
         }
 
         transform.rotation = targetRotation;
-        onRotationComplete?.Invoke();
+
+        if (isUndo)
+            onDesRotationComplete?.Invoke();
+        else
+            onRotationComplete?.Invoke();
     }
 }

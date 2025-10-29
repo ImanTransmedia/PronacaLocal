@@ -7,7 +7,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("Configuración")]
+    [Header("Configuracion")]
     [SerializeField] private int totalBandejas = 0;
     [SerializeField] private bool terminarAutoAlCompletar = true;
 
@@ -24,24 +24,61 @@ public class GameManager : MonoBehaviour
     public UnityEvent OnJuegoReiniciado;
     public UnityEvent OnJuegoSalido;
 
+    [Header("Referencias runtime")]
+    [SerializeField] private BandejaController[] bandejaControllers;
+
+    [Header("UI Resultado")]
+    [SerializeField] private ResultadoUIController resultadoUI;
+
     private readonly Dictionary<int, int> registroColocaciones = new Dictionary<int, int>();
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        SetSnapEnTodas(false);
     }
 
     public void IniciarJuego()
     {
         if (estadoActual == GameState.Salido) return;
+
         bandejasColocadas = 0;
         registroColocaciones.Clear();
         estadoActual = GameState.EnCurso;
+
+        if (resultadoUI != null)
+            resultadoUI.Ocultar();
+
         OnJuegoIniciado?.Invoke();
-        Debug.Log("[GameManager] Juego iniciado.");
     }
 
+    public void PrepararRonda()
+    {
+        if (bandejaControllers != null)
+        {
+            for (int i = 0; i < bandejaControllers.Length; i++)
+            {
+                var bc = bandejaControllers[i];
+                if (bc == null) continue;
+                bc.ForzarDisponible();
+            }
+        }
+
+        SetSnapEnTodas(true);
+    }
+
+    private void SetSnapEnTodas(bool habilitar)
+    {
+        if (bandejaControllers == null) return;
+
+        for (int i = 0; i < bandejaControllers.Length; i++)
+        {
+            var bc = bandejaControllers[i];
+            if (bc == null) continue;
+            bc.SetSnapHabilitado(habilitar);
+        }
+    }
 
     public void RegistrarBandeja(int idSlot, int idObjeto)
     {
@@ -53,7 +90,6 @@ public class GameManager : MonoBehaviour
         if (esNueva)
         {
             bandejasColocadas++;
-            Debug.Log($"[GameManager] Colocada: Slot {idSlot} <- Objeto {idObjeto} | Total: {bandejasColocadas}/{totalBandejas}");
 
             if (bandejasColocadas >= totalBandejas)
             {
@@ -66,28 +102,20 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            Debug.Log($"[GameManager] Slot {idSlot} actualizado con Objeto {idObjeto} (reemplazo).");
-        }
     }
-
 
     public void DesregistrarBandeja(int idSlot)
     {
         if (registroColocaciones.Remove(idSlot))
         {
             bandejasColocadas = Mathf.Max(0, bandejasColocadas - 1);
-            Debug.Log($"[GameManager] Bandeja retirada del Slot {idSlot}. Total: {bandejasColocadas}/{totalBandejas}");
         }
     }
-
 
     public bool VerificarBandejas()
     {
         if (bandejasColocadas < totalBandejas)
         {
-            Debug.LogWarning("[GameManager] Aún no están todas colocadas, no se verifica.");
             return false;
         }
 
@@ -97,12 +125,10 @@ public class GameManager : MonoBehaviour
             int idObjeto = par.Value;
             if (idSlot != idObjeto)
             {
-                Debug.Log($"[GameManager] Mismatch: Slot {idSlot} != Objeto {idObjeto}");
                 return false;
             }
         }
 
-        Debug.Log("[GameManager] Todas las bandejas coinciden correctamente.");
         return true;
     }
 
@@ -110,8 +136,22 @@ public class GameManager : MonoBehaviour
     {
         if (estadoActual == GameState.Terminado) return;
         estadoActual = GameState.Terminado;
+
         OnJuegoTerminado?.Invoke();
-        Debug.Log($"[GameManager] Juego terminado. Éxito: {exito}");
+
+        EvaluarBandejasVisual();
+
+        if (resultadoUI != null)
+        {
+            if (exito)
+            {
+                resultadoUI.MostrarExito();
+            }
+            else
+            {
+                resultadoUI.MostrarFallo();
+            }
+        }
     }
 
     public void ReiniciarJuego()
@@ -126,5 +166,60 @@ public class GameManager : MonoBehaviour
         estadoActual = GameState.Salido;
         OnJuegoSalido?.Invoke();
         Application.Quit();
+    }
+
+    public void EvaluarBandejasVisual()
+    {
+        if (bandejaControllers == null) return;
+
+        for (int i = 0; i < bandejaControllers.Length; i++)
+        {
+            var bc = bandejaControllers[i];
+            if (bc == null) continue;
+
+            int slotId = bc.GetIdBandeja();
+            int objId = bc.GetIdObjetoActual();
+
+            if (objId < 0) continue;
+
+            if (slotId == objId)
+            {
+                bc.SetVisualCorrecto();
+            }
+            else
+            {
+                bc.SetVisualIncorrecto();
+            }
+        }
+    }
+
+    public void SetRenderersBandejas(bool activo)
+    {
+        if (bandejaControllers == null) return;
+
+        for (int i = 0; i < bandejaControllers.Length; i++)
+        {
+            var bc = bandejaControllers[i];
+            if (bc == null) continue;
+
+            MeshRenderer[] rends = bc.gameObject.GetComponents<MeshRenderer>();
+            for (int r = 0; r < rends.Length; r++)
+            {
+                if (rends[r] != null)
+                {
+                    rends[r].enabled = activo;
+                }
+            }
+        }
+    }
+
+    public void ActivarRenderersBandejas()
+    {
+        SetRenderersBandejas(true);
+    }
+
+    public void DesactivarRenderersBandejas()
+    {
+        SetRenderersBandejas(false);
     }
 }

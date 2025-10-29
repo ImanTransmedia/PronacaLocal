@@ -3,63 +3,85 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class BandejaController : MonoBehaviour
 {
+    [Header("Identidad / Config")]
     [SerializeField] private int idBandeja = 0;
     [SerializeField] private Transform puntoDeSnap;
     [SerializeField] private bool bloquearAlColocar = true;
-    [SerializeField] private Material materialColocada;
-    [SerializeField] private Material materialLibre;
 
-    private bool ocupada = false;
-    private Renderer rend;
+    [Header("Materiales")]
+    [SerializeField] private Material materialEspera;
+    [SerializeField] private Material materialColocada;
+    [SerializeField] private Material materialCorrecto;
+    [SerializeField] private Material materialIncorrecto;
+
+    [Header("Runtime")]
+    [SerializeField] private bool snapHabilitado = false;
+
+    public bool ocupada = false;
+
+    private MeshRenderer[] rends;
     private BandejaItem bandejaActual;
+    private bool visualBloqueada = false;
 
     private void Awake()
     {
-        rend = GetComponent<Renderer>();
+        rends = GetComponents<MeshRenderer>();
+
         var c = GetComponent<Collider>();
         if (c) c.isTrigger = true;
-        if (puntoDeSnap == null) puntoDeSnap = transform;
+
+        if (puntoDeSnap == null)
+            puntoDeSnap = transform;
     }
 
     private void OnEnable()
     {
         ocupada = false;
         bandejaActual = null;
-        if (rend && materialLibre) rend.material = materialLibre;
+        visualBloqueada = false;
+
+        SetMaterial(materialEspera);
+
+        snapHabilitado = false;
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void OnTriggerStay(Collider other)
     {
-        if (ocupada && bloquearAlColocar) return;
+        if (!snapHabilitado) return;
         if (!other.CompareTag("Bandeja")) return;
 
         var item = other.GetComponent<BandejaItem>();
         if (item == null) return;
 
+        if (bloquearAlColocar && ocupada && bandejaActual != item) return;
+
         HacerSnap(item);
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!other.CompareTag("Bandeja")) return;
+
+        var item = other.GetComponent<BandejaItem>();
+        if (item == null) return;
+
+        if (ocupada && bandejaActual == item)
+        {
+            LiberarBandeja();
+        }
     }
 
     private void HacerSnap(BandejaItem item)
     {
-        var rb = item.GetComponent<Rigidbody>();
-        if (rb)
-        {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.isKinematic = true;
-        }
-
-        var colItem = item.GetComponent<Collider>();
-        if (colItem) colItem.enabled = false;
-
-        item.transform.SetParent(puntoDeSnap, true);
-        item.transform.position = puntoDeSnap.position;
-        item.transform.rotation = puntoDeSnap.rotation;
+        item.transform.SetParent(puntoDeSnap, false);
+        item.transform.localPosition = Vector3.zero;
+        item.transform.localRotation = Quaternion.identity;
 
         ocupada = true;
         bandejaActual = item;
 
-        if (rend && materialColocada) rend.material = materialColocada;
+        if (!visualBloqueada)
+            SetMaterial(materialColocada);
 
         if (GameManager.Instance != null)
         {
@@ -81,12 +103,72 @@ public class BandejaController : MonoBehaviour
 
         bandejaActual = null;
         ocupada = false;
+        visualBloqueada = false;
 
-        if (rend && materialLibre) rend.material = materialLibre;
+        SetMaterial(materialEspera);
 
         if (GameManager.Instance != null)
         {
             GameManager.Instance.DesregistrarBandeja(idBandeja);
+        }
+    }
+
+    public void SetSnapHabilitado(bool value)
+    {
+        snapHabilitado = value;
+    }
+
+    public void ForzarDisponible()
+    {
+        ocupada = false;
+        bandejaActual = null;
+        visualBloqueada = false;
+
+        SetMaterial(materialEspera);
+    }
+
+    public int GetIdBandeja()
+    {
+        return idBandeja;
+    }
+
+    public int GetIdObjetoActual()
+    {
+        if (bandejaActual == null) return -1;
+        return bandejaActual.idObjeto;
+    }
+
+    public void SetVisualCorrecto()
+    {
+        visualBloqueada = true;
+        SetMaterial(materialCorrecto);
+    }
+
+    public void SetVisualIncorrecto()
+    {
+        visualBloqueada = true;
+        SetMaterial(materialIncorrecto);
+    }
+
+    public void SetVisualColocada()
+    {
+        if (visualBloqueada) return;
+        SetMaterial(materialColocada);
+    }
+
+    public void SetVisualEspera()
+    {
+        if (visualBloqueada) return;
+        SetMaterial(materialEspera);
+    }
+
+    private void SetMaterial(Material m)
+    {
+        if (m == null || rends == null) return;
+        for (int i = 0; i < rends.Length; i++)
+        {
+            if (rends[i] != null)
+                rends[i].material = m;
         }
     }
 }
