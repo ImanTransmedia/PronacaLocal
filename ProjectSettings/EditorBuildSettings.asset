@@ -8,9 +8,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/PRONACA/SCENES/Tienda/Tienda.unity
     guid: 4e7d51a3377b966429a74127f6c069b4
-  - enabled: 0
-    path: Assets/PRONACA/SCENES/Perchas/Perchas.unity
-    guid: 2b697365846fcee46904f010547bd91a
+  - enabled: 1
+    path: Assets/PRONACA/SCENES/Perchas/Percha1.unity
+    guid: df5bd4a8ce469f6489cd885902a23088
+  - enabled: 1
+    path: Assets/PRONACA/SCENES/Perchas/Percha2.unity
+    guid: f758c5a9a9f319d42a45a6f10d0f6bbf
+  - enabled: 1
+    path: Assets/PRONACA/SCENES/Carniceria/Frigorifico.unity
+    guid: f7e99d7be1ce83848b4a868e3982d756
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: c65d5121ebe41ba4382f146ddb15ff16, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
